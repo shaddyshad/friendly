@@ -41,14 +41,14 @@ fn main() -> std::io::Result<()>{
     let reference = Reference::Current(-1);
 
     // a write intentRe
-    let intent = Intent::WriteIntent(Write::Mark(Read::Question(reference)));
+    let intent = Intent::WriteIntent(Write::Skip(Read::Question(reference)));
     let response = qpaper.resolve_intent(intent);
 
     let d = now.elapsed();
     let dt = d.as_nanos() ;
 
     println!("Resolved in {} ns", dt);
-    println!("Marked {}", qpaper.total_questions());
+    println!("Marked {}", qpaper.num_skipped());
 
 
     Ok(())

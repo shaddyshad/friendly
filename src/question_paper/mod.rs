@@ -16,6 +16,7 @@ pub struct QuestionPaper {
     prev_index: usize,
     last_index: usize,
     marked: Vec<usize>,
+    skipped: Vec<usize>,
     total_questions: u32
 }
 
@@ -28,6 +29,7 @@ impl QuestionPaper {
             prev_index:0,
             last_index,
             marked: Vec::new(),
+            skipped: Vec::new(),
             total_questions
         }
     }
@@ -95,14 +97,12 @@ impl QuestionPaper {
     /// Resolve a write intent
     fn resolve_write_intent(&mut self, write_intent: &Write) ->  IntentResult{
         match write_intent {
-            Write::Mark(ref read_intent) => {
-                return self.mark_for_review(read_intent);
-            },
-            _ => ()
+            Write::Mark(ref read_intent) => return self.mark_for_review(read_intent),
+            Write::Skip(ref read_intent) => self.skip(read_intent)
         }
-        Err(Borrowed("cannot resolve a write intent yet"))
     }
 
+    /// Resolve a locator marked
     
 
     // process a read intent and mark it for review
@@ -113,16 +113,24 @@ impl QuestionPaper {
                 // get the index and update the node at that point
                 let index = node.index;
 
-                // mark this node 
-                self.nodes[index]
-                    .data
-                    .mark_for_review();
-
                 self.marked.push(index);
 
                 Ok(node)
             }, 
             Err(e) => Err(e)
+        }
+    }
+
+    fn skip(&mut self, read_intent: &Read) -> IntentResult {
+        /// Mark the node as skipped
+        match self.resolve_read_intent(read_intent){
+            Ok(node) => {
+                let index = node.index;
+
+                self.skipped.push(index);
+                Ok(node)
+            },
+            Err(err) => Err(err)
         }
     }
 
@@ -193,6 +201,10 @@ impl QuestionPaper {
 
     pub fn total_questions(&self) -> u32 {
         self.total_questions
+    }
+
+    pub fn num_skipped(&self) -> usize {
+        self.skipped.len()
     }
 }
 
