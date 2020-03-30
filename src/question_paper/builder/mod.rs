@@ -22,7 +22,8 @@ pub struct QPaperBuilder {
     nodes: Vec<Node>,
     mode: Option<Modes>,
     instructions: Vec<String>,
-    section_builder: SectionBuilder
+    section_builder: SectionBuilder,
+    total_questions: u32
 }
 
 
@@ -33,7 +34,8 @@ impl QPaperBuilder {
             nodes: vec![],
             mode: None,
             instructions: vec![],
-            section_builder: SectionBuilder::new()
+            section_builder: SectionBuilder::new(),
+            total_questions: 0
         }
     }
 
@@ -168,7 +170,7 @@ impl Builder for QPaperBuilder {
         let nodes = replace(&mut self.nodes, vec![]);
 
 
-        QuestionPaper::new(nodes, total)
+        QuestionPaper::new(nodes, total -1, self.total_questions)
     }
 }
 
@@ -187,6 +189,9 @@ impl QPaperBuilder {
     // insert a section
     fn insert_section(&mut self) {
         let section = self.section_builder.end();
+
+
+        self.total_questions = section.total_questions;
 
         // append the section and its children
         let mut prev = None;

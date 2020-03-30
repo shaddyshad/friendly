@@ -9,7 +9,7 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use std::fs::File;
 
-use question_paper::{Read, Reference, Intent};
+use question_paper::{Read, Reference, Intent, Write};
 
 fn main() -> std::io::Result<()>{
     let xml_content = include_str!("/home/shaddy/Documents/shad/xml/qa_paper.xml");
@@ -18,7 +18,6 @@ fn main() -> std::io::Result<()>{
     let (tx, rx) = mpsc::channel();
 
     // timing
-    let now = std::time::Instant::now();
 
     Tokenizer::tokenize(lines, Sink::new(tx));
 
@@ -27,17 +26,29 @@ fn main() -> std::io::Result<()>{
     });
 
     let mut qpaper = handle.join().unwrap();
-    let d = now.elapsed();
-    let dt = d.as_secs() ;
-
 
     // read an intent for question 5
-    let reference = Reference::Start(1);
+    let reference = Reference::Start(4);
+
     let intent = Intent::ReadIntent(Read::Question(reference));
 
+    let now = std::time::Instant::now();
     let response = qpaper.resolve_intent(intent);
 
-    println!("Resolved {:#?}", response);
+    let reference = Reference::Current(1);
+    let intent = Intent::ReadIntent(Read::Question(reference));
+    let response = qpaper.resolve_intent(intent);
+    let reference = Reference::Current(-1);
+
+    // a write intentRe
+    let intent = Intent::WriteIntent(Write::Mark(Read::Question(reference)));
+    let response = qpaper.resolve_intent(intent);
+
+    let d = now.elapsed();
+    let dt = d.as_nanos() ;
+
+    println!("Resolved in {} ns", dt);
+    println!("Marked {}", qpaper.total_questions());
 
 
     Ok(())

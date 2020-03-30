@@ -1,5 +1,6 @@
 use crate::Tag;
 use super::QuestionPaper;
+use std::borrow::Cow::{self, Borrowed};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NodeData {
@@ -23,6 +24,13 @@ impl NodeData {
             _ => false
         }
     }
+
+    pub fn mark_for_review(&mut self) -> Result<(), Cow<'static, str>> {
+        match self {
+            Self::Question(ref mut question) => Ok(question.mark_for_review()),
+            _ => Err(Borrowed("Cannot mark this node for review."))
+        }
+    }
 }
 
 // Section data
@@ -41,7 +49,25 @@ pub struct SectionData {
 pub struct QuestionData{
     pub question: String,
     pub question_number: u32,
-    pub page_number: u32
+    pub page_number: u32,
+    pub marked: bool
+}
+
+impl Default for QuestionData {
+    fn default() -> Self {
+        QuestionData {
+            question: String::new(),
+            question_number: 0,
+            page_number: 1,
+            marked: false
+        }
+    }
+}
+
+impl QuestionData {
+    pub fn mark_for_review(&mut self) {
+        self.marked = true;
+    }
 }
 
 

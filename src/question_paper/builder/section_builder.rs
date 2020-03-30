@@ -10,7 +10,8 @@ enum Modes {
 #[derive(Debug)]
 pub struct Section {
     pub section: SectionData,
-    pub questions: Vec<QuestionData>
+    pub questions: Vec<QuestionData>,
+    pub total_questions: u32
 }
 
 /// Builder for a section block
@@ -48,19 +49,19 @@ impl SectionBuilder {
     fn process_question(&mut self, tag: Tag) {
         if tag.is_end_tag(){
             if tag.is_question(){
-                self.current_question += 1;
-                self.num_of_questions += 1;
-
                 let question = tag.value().unwrap();
 
                 // create a question data
                 let question_data = QuestionData{
                     question,
                     page_number: self.current_page,
-                    question_number: self.current_question
+                    question_number: self.current_question,
+                    ..QuestionData::default()
                 };
 
                 self.questions.push(question_data);
+                self.current_question += 1;
+                self.num_of_questions += 1;
             }
         }
     }
@@ -73,7 +74,7 @@ impl SectionBuilder {
             num_of_marked: 0,
             num_of_skipped: 0,
             num_of_attempted: 0,
-            num_of_remaining: 0
+            num_of_remaining: 0,
         }
     }
 }
@@ -134,7 +135,8 @@ impl Builder for SectionBuilder {
     fn end(&mut self) -> Self::Item {
         Section {
             section: self.get_section_data(),
-            questions: replace(&mut self.questions, vec![])
+            questions: replace(&mut self.questions, vec![]),
+            total_questions: self.current_question
         }
     }
 }
