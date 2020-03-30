@@ -22,6 +22,7 @@ impl Sink {
             self.line_number = line_number;
         }
 
+
         let token = match token {
             ParseError(e) => {
                 self.parse_error(e);
@@ -34,17 +35,25 @@ impl Sink {
     }
 
     fn parse_error(&mut self, error: Cow<'static, str>){
-        self.errors.push(error);
+        println!("{:?}", error);
     }
 
 
     fn process_to_completion(&mut self, token: Token) -> SinkResult {
+
         // process the tokens
         match token {
-            TagToken(tag) => self.tb.send(tag).unwrap(),
+            TagToken(tag) => {
+                self.tb.send(tag).unwrap()
+            },
             _ => return SinkResult::Continue
         }
 
         return SinkResult::Continue;
+    }
+
+    pub fn end(&mut self){
+        // drop the transmitter
+        println!("Done");
     }
 }

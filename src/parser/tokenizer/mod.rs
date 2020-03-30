@@ -26,6 +26,7 @@ pub enum ProcessResult {
 #[derive(Debug, Eq, PartialEq)]
 pub enum TokenizerResult {
     Success,
+    Done
 }
 
 pub struct Tokenizer {
@@ -64,9 +65,10 @@ impl Tokenizer {
     }
     fn bad_char_error(&mut self) {
         let msg = format!(
-            "Bad character. Saw {} in state {:?}",
+            "Bad character. Saw {} in state {:?} on line {}",
             self.current_char,
-            self.state
+            self.state,
+            self.current_line
         );
 
         self.emit_error(Cow::from(msg));
@@ -83,8 +85,9 @@ impl Tokenizer {
     // process and continue
     fn process_and_continue(&mut self, token: Token) {
         assert!(
-            matches!(self.process_token(token),
-            SinkResult::Continue
+            matches!(
+                self.process_token(token),
+                SinkResult::Continue
         ))
     }
 
@@ -132,6 +135,10 @@ impl Tokenizer {
         self.current_tag_name = name;
     }
 
+    fn set_self_closing(&mut self){
+        self.current_tag_self_closing = true;
+    }
+
     // emit a token
     fn emit_tag(&mut self){
         self.finish_attribute();
@@ -170,8 +177,10 @@ impl Tokenizer {
             value
         });
 
+        self.current_tag_self_closing = false;
 
-        self.sink.process_token(token, self.current_line);
+
+        self.process_token(token);
     }
 
     fn finish_attribute(&mut self) {
@@ -228,6 +237,7 @@ macro_rules! shorthand (
     (  $me:ident  : emit_tag                                    )   => ( $me.emit_tag();                      );
     (  $me:ident  : emit_attribute                              )   => ( $me.emit_attribute();                );
     (  $me:ident  : emit_tag_name $name:ident             )   => ( $me.emit_tag_name($name);      );
+    (  $me:ident  : emit_self_closing                           )   => ( $me.set_self_closing();               );
 );
 
 /// A little DSl for our state machine 
@@ -264,6 +274,31 @@ macro_rules! pop_from_set(
 
 
 impl Tokenizer {
+
+    pub fn tokenize(input: Vec<String>, sink: Sink) {
+        let mut tok = Tokenizer::new(sink);
+        let mut xml_content = XmlContent::new();
+
+        for chunk in input{
+            xml_content.push_back(chunk);
+            let _ = tok.feed(&mut xml_content);
+        }
+        
+        tok.end();
+    }
+
+    pub fn feed(&mut self, xml_content: &mut XmlContent) -> TokenizerResult {
+        if xml_content.is_empty(){
+            return TokenizerResult::Done;
+        }
+
+        self.process(xml_content)
+    }
+
+    /// Signal the end of input
+    pub fn end(&mut self){
+        self.sink.end();
+    }
     //run the stat e machine
     pub fn process(&mut self, input: &mut XmlContent) -> TokenizerResult{
         loop {
@@ -276,18 +311,24 @@ impl Tokenizer {
         TokenizerResult::Success
     }
     pub fn step(&mut self, input: &mut XmlContent) -> ProcessResult{
-        println!("{:#?}", &self.state);
+        // println!("{:#?}", &self.state);
         match self.state {
             States::Document => loop{
                 // read a token
-                let set = small_char_set!(b'<' b' ' b'\n' b'\t' b'>' b'\0');
+                let set = small_char_set!(b'<' b' ' b'\n' b'\t' b'>' b'\0' b'?');
                 match pop_from_set!(self, input, set) {
                     FromSet('<') => go!(self: to TagOpen),
-                    FromSet(' ') | FromSet('\n') | FromSet('\t') => return ProcessResult::Continue,
+                    FromSet(' ') | FromSet('\n') | FromSet('\t') => (),
                     FromSet('>') => self.emit_tag(),
                     FromSet('\0') => return ProcessResult::Suspend,
-                    NotFromSet(c) => go!(self: emit_passage c; to Passage),
-                    _ => return ProcessResult::Suspend
+                    FromSet('?') => go!(self: to ProcessingInstruction),
+                    NotFromSet(c) => {
+                        
+                        go!(self: emit_passage c; to Passage)
+                    },
+                    _ => {
+                        return ProcessResult::Suspend
+                    }
                 }
             },
             States::TagOpen => loop {
@@ -296,7 +337,7 @@ impl Tokenizer {
 
                 match pop_from_set!(self, input, set){
                     FromSet('/') => go!(self: to StartClosingTag),
-                    FromSet('>') => go!(self: to TagName),
+                    FromSet('>') => go!(self: emit_tag; to Document),
                     FromSet(' ') => go!(self: to BeforeAttributeName),
                     FromSet('?') => go!(self: to ProcessingInstruction),
                     NotFromSet(c) => self.create_tag(StartTag, c) ,
@@ -317,7 +358,7 @@ impl Tokenizer {
                 let set = small_char_set!(b'>');
 
                 match pop_from_set!(self, input, set){
-                    FromSet('>') => go!(self: error; to Document),
+                    FromSet('>') => go!(self: emit_self_closing; emit_tag; to Document),
                     NotFromSet(c) => go!(self: create_tag EndTag c; to Document),
                     _ => return ProcessResult::Suspend
                 }
@@ -328,19 +369,19 @@ impl Tokenizer {
                 match pop_from_set!(self, input, set) {
                     FromSet('/') => self.current_tag_self_closing = true,
                     FromSet('>') => go!(self: emit_tag; to Document),
-                    FromSet(' ') | FromSet('\n') | FromSet('\t') => {
-                        go!(self: to BeforeAttributeName)
-                    },
+                    FromSet(' ') | FromSet('\n') | FromSet('\t') => go!(self: to BeforeAttributeName),
                     _ => return ProcessResult::Suspend
                 }
             },
             States::BeforeAttributeName => loop {
-                let set = small_char_set!(b'=' b'/' b'>');
+                let set = small_char_set!(b'=' b'/' b'>' b'?' b' ');
 
                 match pop_from_set!(self, input, set) {
                     FromSet('=') => go!(self: to StartAttributeValue),
                     FromSet('/') => go!(self: to StartClosingTag),
                     FromSet('>') => go!(self: emit_tag; to Document),
+                    FromSet('?') => go!(self: to ProcessingInstruction),
+                    FromSet(' ') => (),
                     NotFromSet(c) => self.emit_attribute_name(c),
                     _ => return ProcessResult::Suspend
                 }

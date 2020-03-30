@@ -13,8 +13,20 @@ pub struct XmlContent {
 }
 
 impl XmlContent {
-    pub fn new(content: &str) -> Self {
+    pub fn new() -> Self {
+        XmlContent {content: String::new()}
+    }
+
+    pub fn push_back(&mut self, chunk: String){
+        self.content.push_str(&chunk);
+    }
+
+    pub fn from_str(content: &str) -> Self {
         XmlContent {content: String::from(content)}
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.content.is_empty()
     }
 
     /// Pops and return either a single character from a given set

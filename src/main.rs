@@ -1,42 +1,48 @@
-use interactive_paper::{parser};
+use interactive_paper::{parser, QPaperBuilder, Builder, QuestionPaper};
 use std::sync::mpsc;
 use std::thread;
 use parser::{ProcessResult, Sink, Tokenizer, TokenizerResult, xml_content::XmlContent, interface::Tag};
 
 use mpsc::{Sender, Receiver};
 
-fn main() {
-    let xml = include_str!("/home/shaddy/Documents/shad/xml/qa_paper.xml");
-    let mut xml_content = XmlContent::new(xml);
+use std::io::prelude::*;
+use std::io::BufReader;
+use std::fs::File;
+
+fn main() -> std::io::Result<()>{
+    let xml_content = include_str!("/home/shaddy/Documents/shad/xml/qa_paper.xml");
+    let mut lines = vec!(xml_content.to_string());
 
     let (tx, rx) = mpsc::channel();
 
     // timing
     let now = std::time::Instant::now();
-    let mut tokenizer = Tokenizer::new(Sink::new(tx));
+
+    Tokenizer::tokenize(lines, Sink::new(tx));
 
     let handle = thread::spawn(move || {
-        build_tree(rx);
+        build_question_paper(rx)
     });
 
-    match tokenizer.process(&mut xml_content){
-        TokenizerResult::Success => {
-            let d = now.elapsed();
-            let dt = d.as_millis() ;
+    let x = handle.join().unwrap();
+    let d = now.elapsed();
+    let dt = d.as_millis() ;
 
-            println!("Took {:?} to finish ", dt);
-        }
-    }
+    println!("Took {:#?}", x);
 
-    
-    handle.join().unwrap();
+
+    Ok(())
+
 }
 
 // build a tree
-fn build_tree(rx: Receiver<Tag>) {
-    let mut tokens = rx.iter();
+fn build_question_paper(rx: Receiver<Tag>) -> QuestionPaper {
+    let mut builder = QPaperBuilder::new();
+    let mut c = 10;
 
-    while let Some(tag) = tokens.next(){
-        println!("{:?}", tag);
+    for tag in rx {
+        builder.process_tag(tag);
     }
+
+    builder.end()
 }
