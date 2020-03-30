@@ -164,9 +164,11 @@ impl Builder for QPaperBuilder {
     }
 
     fn end(&mut self) -> Self::Item {
-        QuestionPaper {
-            nodes: replace(&mut self.nodes, vec![])
-        }
+        let total = self.nodes.len();
+        let nodes = replace(&mut self.nodes, vec![]);
+
+
+        QuestionPaper::new(nodes, total)
     }
 }
 

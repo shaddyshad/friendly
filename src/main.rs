@@ -1,4 +1,4 @@
-use interactive_paper::{parser, QPaperBuilder, Builder, QuestionPaper};
+use interactive_paper::{parser, QPaperBuilder, Builder, QuestionPaper, question_paper};
 use std::sync::mpsc;
 use std::thread;
 use parser::{ProcessResult, Sink, Tokenizer, TokenizerResult, xml_content::XmlContent, interface::Tag};
@@ -8,6 +8,8 @@ use mpsc::{Sender, Receiver};
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::fs::File;
+
+use question_paper::{Read, Reference, Intent};
 
 fn main() -> std::io::Result<()>{
     let xml_content = include_str!("/home/shaddy/Documents/shad/xml/qa_paper.xml");
@@ -24,11 +26,18 @@ fn main() -> std::io::Result<()>{
         build_question_paper(rx)
     });
 
-    let x = handle.join().unwrap();
+    let mut qpaper = handle.join().unwrap();
     let d = now.elapsed();
-    let dt = d.as_millis() ;
+    let dt = d.as_secs() ;
 
-    println!("Took {:#?}", x);
+
+    // read an intent for question 5
+    let reference = Reference::Start(1);
+    let intent = Intent::ReadIntent(Read::Question(reference));
+
+    let response = qpaper.resolve_intent(intent);
+
+    println!("Resolved {:#?}", response);
 
 
     Ok(())
@@ -38,7 +47,6 @@ fn main() -> std::io::Result<()>{
 // build a tree
 fn build_question_paper(rx: Receiver<Tag>) -> QuestionPaper {
     let mut builder = QPaperBuilder::new();
-    let mut c = 10;
 
     for tag in rx {
         builder.process_tag(tag);
