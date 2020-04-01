@@ -38,17 +38,19 @@ fn main() -> std::io::Result<()>{
     let reference = Reference::Current(1);
     let intent = Intent::ReadIntent(Read::Question(reference));
     let response = qpaper.resolve_intent(intent);
-    let reference = Reference::Current(-1);
 
+    println!("Marked {:#?}", response);
+
+    let reference = Reference::Current(-1);
     // a write intentRe
-    let intent = Intent::WriteIntent(Write::Skip(Read::Question(reference)));
+    let intent = Intent::WriteIntent(Write::Note(Read::Question(reference), "come back to this later".to_string()));
     let response = qpaper.resolve_intent(intent);
 
     let d = now.elapsed();
     let dt = d.as_nanos() ;
 
     println!("Resolved in {} ns", dt);
-    println!("Marked {}", qpaper.num_skipped());
+    println!("{:#?}", qpaper.notes());
 
 
     Ok(())

@@ -35,7 +35,7 @@ impl Sink {
     }
 
     fn parse_error(&mut self, error: Cow<'static, str>){
-        println!("{:?}", error);
+        self.errors.push(error)
     }
 
 
@@ -54,6 +54,6 @@ impl Sink {
 
     pub fn end(&mut self){
         // drop the transmitter
-        println!("Done");
+        println!("Report error");
     }
 }

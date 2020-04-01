@@ -3,8 +3,7 @@ use std::mem::replace;
 /// builder modes for a setion
 #[derive(Debug)]
 enum Modes {
-    Question,
-    Meta
+    Question
 }
 
 #[derive(Debug)]

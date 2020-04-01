@@ -4,23 +4,26 @@ mod intents;
 
 use std::borrow::Cow::{Borrowed, self};
 
-pub use builder::{QPaperBuilder, Builder};
-use interface::{Node, Predicate, NodeIndex, NodeData, predicates};
-pub use intents::{Read, Write, Reference, Intent};
+use interface::{Node, Predicate, NodeIndex, NodeData, predicates, Note};
 
 use Reference::{Start, Current, End};
+
+// re exports
+pub use builder::{QPaperBuilder, Builder};
+pub use intents::{Read, Write, Reference, Intent, Reader, Writer, WriteResult, ReadResult, IntentResult};
 
 #[derive(Debug, Clone)]
 pub struct QuestionPaper {
     pub nodes: Vec<Node>,
     prev_index: usize,
     last_index: usize,
+    total_questions: u32,
     marked: Vec<usize>,
     skipped: Vec<usize>,
-    total_questions: u32
+    notes: Vec<Note>
 }
 
-type IntentResult = Result<Node, Cow<'static, str>>;
+
 
 impl QuestionPaper {
     pub fn new(nodes: Vec<Node>, last_index: usize, total_questions: u32) -> Self {
@@ -28,9 +31,10 @@ impl QuestionPaper {
             nodes,
             prev_index:0,
             last_index,
-            marked: Vec::new(),
-            skipped: Vec::new(),
-            total_questions
+            total_questions,
+            marked: vec![],
+            skipped: vec![],
+            notes: vec![]
         }
     }
 
@@ -67,133 +71,32 @@ impl QuestionPaper {
         self.prev_index = index;
     }
 
-    // resolve a user intent
-    pub fn resolve_intent(&mut self, intent: Intent) ->  Result<NodeData, Cow<'static, str>> {
-        let result = match intent {
-            Intent::ReadIntent(ref read_intent) => self.resolve_read_intent(read_intent),
-            Intent::WriteIntent(ref write_intent) => self.resolve_write_intent(write_intent)
-        };
-
-        match result {
-            Ok(node) => {
-                let index = node.index;
-
-                self.update_previous(index);
-
-                Ok(node.data.clone())
-            },
-            Err(e) => Err(e)
-        }
-    }
-
-    /// Resolves a read intent
-    fn resolve_read_intent(&mut self, read_intent: &Read) -> IntentResult {
-        match read_intent {
-            Read::Question(ref question) => self.resolve_question(question),
-            Read::Section(ref section) => self.resolve_section(section)
-        }
-    }
-
-    /// Resolve a write intent
-    fn resolve_write_intent(&mut self, write_intent: &Write) ->  IntentResult{
-        match write_intent {
-            Write::Mark(ref read_intent) => return self.mark_for_review(read_intent),
-            Write::Skip(ref read_intent) => self.skip(read_intent)
-        }
-    }
-
-    /// Resolve a locator marked
-    
-
-    // process a read intent and mark it for review
-    fn mark_for_review(&mut self, read_intent: &Read) -> IntentResult {
-        // resolve 
-        match self.resolve_read_intent(read_intent){
-            Ok(node) => {
-                // get the index and update the node at that point
-                let index = node.index;
-
-                self.marked.push(index);
-
-                Ok(node)
-            }, 
-            Err(e) => Err(e)
-        }
-    }
-
-    fn skip(&mut self, read_intent: &Read) -> IntentResult {
-        /// Mark the node as skipped
-        match self.resolve_read_intent(read_intent){
-            Ok(node) => {
-                let index = node.index;
-
-                self.skipped.push(index);
-                Ok(node)
-            },
-            Err(err) => Err(err)
-        }
-    }
-
-    /// Resolve a question
-    fn resolve_question(&mut self, reference: &Reference) -> IntentResult {
-        let predicate = predicates::QuestionPredicate;
-
-        self.resolve_referece(reference, predicate)
-    }
-
-    /// Resolve a section
-    fn resolve_section(&mut self, reference: &Reference) -> IntentResult {
-        let predicate = predicates::SectionPredicate;
-
-        self.resolve_referece(reference, predicate)
-    }
-
-    /// Resolve from a reference
-    fn resolve_referece<P: Predicate>(&mut self, reference: &Reference, predicate: P) -> IntentResult {
-
-        let (prev, skip) = match reference {
-            Start(skip) => (0, skip.abs() as usize),
-            Current(skip) => (self.prev_index(), skip.abs() as usize),
-            End(skip) => (self.last_index(), skip.abs() as usize)
-            
-        };
+    // resolve a read or write intent
+    pub fn resolve_intent(&mut self, intent: Intent) ->  IntentResult {
+        match intent {
+            Intent::ReadIntent(ref read_intent) => {
+                let result = match self.resolve_read_intent(read_intent) {
+                    Ok(node) => {
+                        let index = node.index;
         
+                        self.update_previous(index);
+        
+                        Ok(node.data.clone())
+                    },
+                    Err(e) => Err(e)
+                };
 
-        self.resolve(predicate, prev, skip, reference)
-    }
+                IntentResult::Read(result)
+            },
+            Intent::WriteIntent(ref write_intent) => {
+                let result = self.resolve_write_intent(write_intent);
 
-    fn resolve<P: Predicate>(&mut self, predicate: P, prev: usize, skip: usize, reference: &Reference) -> IntentResult {
-        let finder = self.find(predicate, prev, skip);
-
-
-        if reference.is_forward(){
-            self.find_next(finder)
-        }else{
-            self.find_back(finder)
+                IntentResult::Write(result)
+            }
         }
+        
     }
 
-    /// Do a foward find
-    fn find_next<P: Predicate>(&self, mut finder: Find<P>) -> IntentResult {
-        if let Some(node) = finder.next(){
-            Ok(node.raw().clone())
-        }else{
-            Err(Borrowed("Could not find a next node"))
-        }
-    }
-
-    /// Do a reverse find
-    fn find_back<P: Predicate>(&self, mut finder: Find<P>) -> IntentResult {
-        if let Some(node) = finder.next_back(){
-            Ok(node.raw().clone())
-        }else{
-            Err(Borrowed("Could not resolve a previous node"))
-        }
-    }
-
-}
-
-impl QuestionPaper {
     /// Check how many questions have been marked for review
     pub fn num_marked(&self) -> usize {
         self.marked.len()
@@ -206,7 +109,143 @@ impl QuestionPaper {
     pub fn num_skipped(&self) -> usize {
         self.skipped.len()
     }
+
+    /// get the notes
+    pub fn notes(&self) -> &Vec<Note> {
+        &self.notes
+    }
+
 }
+
+impl Reader for QuestionPaper {
+    /// Resolves a read intent
+    fn resolve_read_intent(&mut self, read_intent: &Read) -> ReadResult {
+        match read_intent {
+            Read::Question(ref question) => self.resolve_question(question),
+            Read::Section(ref section) => self.resolve_section(section)
+        }
+    }
+
+    /// Resolve a question
+    fn resolve_question(&mut self, reference: &Reference) -> ReadResult {
+        let predicate = predicates::QuestionPredicate;
+
+        self.resolve_referece(reference, predicate)
+    }
+
+    /// Resolve a section
+    fn resolve_section(&mut self, reference: &Reference) -> ReadResult {
+        let predicate = predicates::SectionPredicate;
+
+        self.resolve_referece(reference, predicate)
+    }
+
+    /// Resolve from a reference
+    fn resolve_referece<P: Predicate>(&mut self, reference: &Reference, predicate: P) -> ReadResult {
+
+        let (prev, skip) = match reference {
+            Start(skip) => (0, skip.abs() as usize),
+            Current(skip) => (self.prev_index(), skip.abs() as usize),
+            End(skip) => (self.last_index(), skip.abs() as usize)
+            
+        };
+        
+
+        self.resolve(predicate, prev, skip, reference)
+    }
+
+    fn resolve<P: Predicate>(&mut self, predicate: P, prev: usize, skip: usize, reference: &Reference) -> ReadResult {
+        let finder = self.find(predicate, prev, skip);
+
+
+        if reference.is_forward(){
+            self.find_next(finder)
+        }else{
+            self.find_back(finder)
+        }
+    }
+
+    /// Do a foward find
+    fn find_next<P: Predicate>(&self, mut finder: Find<P>) -> ReadResult {
+        if let Some(node) = finder.next(){
+            Ok(node.raw().clone())
+        }else{
+            Err(Borrowed("Could not find a next node"))
+        }
+    }
+
+    /// Do a reverse find
+    fn find_back<P: Predicate>(&self, mut finder: Find<P>) -> ReadResult {
+        if let Some(node) = finder.next_back(){
+            Ok(node.raw().clone())
+        }else{
+            Err(Borrowed("Could not resolve a previous node"))
+        }
+    }
+
+}
+
+impl Writer for QuestionPaper {
+    /// Resolve a write intent
+    fn resolve_write_intent(&mut self, write_intent: &Write) ->  WriteResult{
+        match write_intent {
+            Write::Mark(ref read_intent) => return self.mark_for_review(read_intent),
+            Write::Skip(ref read_intent) => self.skip(read_intent),
+            Write::Note(ref read_intent, note) => self.note(read_intent, note.to_string())
+        }
+    }
+
+    // process a read intent and mark it for review
+    fn mark_for_review(&mut self, read_intent: &Read) -> WriteResult {
+        // resolve 
+        match self.resolve_read_intent(read_intent){
+            Ok(node) => {
+                // get the index and update the node at that point
+                let index = node.index;
+
+                self.marked.push(index);
+
+                WriteResult::Success
+            }, 
+            Err(e) => WriteResult::Error(e)
+        }
+    }
+
+    fn skip(&mut self, read_intent: &Read) -> WriteResult {
+        /// Mark the node as skipped
+        match self.resolve_read_intent(read_intent){
+            Ok(node) => {
+                let index = node.index;
+
+                self.skipped.push(index);
+
+                // advance the cursor with the index
+                self.update_previous(index);
+
+                WriteResult::Success
+            },
+            Err(err) => WriteResult::Error(err)
+        }
+    }
+
+    /// Take a note on this node
+    fn note(&mut self, read_intent: &Read, note: String) -> WriteResult {
+        match self.resolve_read_intent(read_intent){
+            Ok(node) => {
+                let index = node.index;
+
+                self.notes.push(Note{
+                    note,
+                    index
+                });
+
+                WriteResult::Success
+            },
+            Err(err) => WriteResult::Error(err)
+        }
+    }
+}
+
 
 pub struct Find<'a, P:Predicate> {
     predicate: P,

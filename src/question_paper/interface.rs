@@ -25,12 +25,6 @@ impl NodeData {
         }
     }
 
-    pub fn mark_for_review(&mut self) -> Result<(), Cow<'static, str>> {
-        match self {
-            Self::Question(ref mut question) => Ok(question.mark_for_review()),
-            _ => Err(Borrowed("Cannot mark this node for review."))
-        }
-    }
 }
 
 // Section data
@@ -64,12 +58,13 @@ impl Default for QuestionData {
     }
 }
 
-impl QuestionData {
-    pub fn mark_for_review(&mut self) {
-        self.marked = true;
-    }
-}
 
+/// A note can be taken on any node
+#[derive(Debug, Clone, PartialEq)]
+pub struct Note{
+    pub index: usize,
+    pub note: String
+}
 
 /// A single document node
 #[derive(Debug, Clone)]
@@ -120,7 +115,7 @@ pub trait Builder {
     fn end(&mut self) -> Self::Item;
 }
 
-/// A trait for all predicated to be applied on a node
+/// A trait for all predicates to be applied on a node
 pub trait Predicate {
     fn matches(&self, node: &NodeIndex) -> bool;
 
