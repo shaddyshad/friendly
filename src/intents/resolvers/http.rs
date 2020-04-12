@@ -1,11 +1,8 @@
-use super::{Intent, Errors, IntentParser};
+use super::{Intent, Errors, IntentParser, LuResponse};
 use std::borrow::Cow::{self, Borrowed};
 use hyper::{body::HttpBody as _, Client, Uri};
 use url::form_urlencoded::{byte_serialize};
 use serde_json::{from_slice};
-
-
-pub type Value = serde_json::Value;
 
 /// Resolves an input string using a http connection to an LU client
 pub struct HttpResolver {
@@ -33,11 +30,11 @@ impl HttpResolver {
 
         match url.parse::<Uri>(){
             Ok(url) => Ok(url),
-            _ => Err(Errors::InvalidInput)
+            _ => Err(Errors::InvalidInput(input.to_string()))
         }
     }
 
-    pub async fn get(&self, input: &str) -> Result<Value, Errors> {
+    pub async fn get(&self, input: &str) -> Result<LuResponse, Errors> {
         // create a http url and use a http client to invoke
         let url = self.url_encode(input)?;
 
@@ -55,8 +52,11 @@ impl HttpResolver {
         };
 
 
-        let body: Value = match from_slice(&body){
-            Err(_) => return Err(Errors::ParsingError),
+        let body: LuResponse = match from_slice(&body){
+            Err(err) => {
+                println!("{:?}", err);
+                return Err(Errors::ParsingError);
+            },
             Ok(body) => body
         };
 

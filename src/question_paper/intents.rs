@@ -31,7 +31,7 @@ impl Reference {
             Self::End(c) => c
         };
 
-        val >= &0
+        val >= &0 
     }
 }
 

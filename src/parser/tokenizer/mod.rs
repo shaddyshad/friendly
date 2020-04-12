@@ -228,7 +228,6 @@ impl Tokenizer {
     }
 }
 
-
 /// Shorthand for common operations
 macro_rules! shorthand (
     (  $me:ident  : error                                       )   => ( $me.bad_char_error();                );

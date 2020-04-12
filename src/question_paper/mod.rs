@@ -1,6 +1,6 @@
 mod builder;
 mod interface;
-mod intents;
+pub mod intents;
 
 use std::borrow::Cow::{Borrowed, self};
 
