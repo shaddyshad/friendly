@@ -7,6 +7,7 @@ use intent_parser::IntentParser;
 pub use http::{HttpResolver};
 
 pub type Value = serde_json::Value;
+use serde::Deserialize;
 
 /// Intent parsing errors
 #[derive(Debug)]
@@ -41,8 +42,6 @@ impl IntentResolver{
         Ok(response)
     }
 }
-
-use serde::Deserialize;
 
 
 #[derive(Deserialize, Debug)]

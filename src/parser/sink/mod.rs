@@ -54,6 +54,6 @@ impl Sink {
 
     pub fn end(&mut self){
         // drop the transmitter
-        println!("Report error");
+        println!("Dropping the channel");
     }
 }
