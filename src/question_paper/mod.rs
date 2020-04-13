@@ -44,7 +44,7 @@ impl QuestionPaper {
             question_paper: self,
             predicate,
             next,
-            skip
+            skip: skip -1
         }
     }
 
