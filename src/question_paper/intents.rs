@@ -52,7 +52,7 @@ pub enum MetaIntent {
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 pub enum WriteResult {
-    Success,
+    Success(String),
     Error(Cow<'static, str>)
 }
 

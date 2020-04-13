@@ -230,7 +230,7 @@ impl Writer for QuestionPaper {
         if let Ok(node) = self.find_node(reads) {
             self.marked.insert(node.index, node.data.clone());
 
-            return WriteResult::Success;
+            return WriteResult::Success("Question has been marked for review".to_string());
         }
         
         return WriteResult::Error(Borrowed("Could not mark the specified item for review. Please try again"));        
@@ -240,7 +240,7 @@ impl Writer for QuestionPaper {
         if let Ok(node) = self.find_node(reads) {
             self.skipped.insert(node.index, node.data.clone());
 
-            return WriteResult::Success;
+            return WriteResult::Success("Question has been skipped".to_string());
         }
         
         return WriteResult::Error(Borrowed("Could not skip the specified item. Please try again"));        
@@ -254,7 +254,7 @@ impl Writer for QuestionPaper {
                 index: node.index
             });
            
-            return WriteResult::Success;
+            return WriteResult::Success("A not has been taken".to_string());
         }
 
         return WriteResult::Error(Borrowed("Could not take a note as requested"));
