@@ -11,7 +11,7 @@ use Reference::{Start, Current, End};
 
 // re exports
 pub use builder::{QPaperBuilder, Builder};
-pub use intents::{Read, Write, Reference, Intent, Reader, Writer, WriteResult, ReadResult, IntentResult};
+pub use intents::{Read, Write, Reference, Intent, Reader, Writer, WriteResult, ReadResult, IntentResult, MetaIntent};
 
 #[derive(Debug, Clone)]
 pub struct QuestionPaper {
@@ -93,6 +93,19 @@ impl QuestionPaper {
                 let result = self.resolve_write_intent(write_intent);
 
                 IntentResult::Write(result)
+            },
+            Intent::Meta(ref meta) => {
+                match meta {
+                    MetaIntent::Marked => {
+                        // get the total marked and read them out
+                        let total_marked = self.marked.len();
+
+                        return IntentResult::Meta(format!("You have {} marked questions", total_marked));
+                    },
+                    MetaIntent::Skipped => {
+                        return IntentResult::Meta(format!("You have skipped {} question", self.skipped.len()));
+                    }
+                }
             }
         }
         
@@ -138,7 +151,7 @@ impl Reader for QuestionPaper {
     fn resolve_read_intent(&mut self, read_intent: &Read) -> ReadResult {
         match read_intent {
             Read::Question(ref question) => self.resolve_question(question),
-            Read::Section(ref section) => self.resolve_section(section)
+            Read::Section(ref section) => self.resolve_section(section),
         }
     }
 

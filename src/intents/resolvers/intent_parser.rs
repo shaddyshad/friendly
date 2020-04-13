@@ -1,5 +1,5 @@
 use super::{Value, Errors, LuResponse, Entity, EntityType};
-use crate::question_paper::{Intent, Reference, Read, Write};
+use crate::question_paper::{Intent, Reference, Read, Write, MetaIntent};
 use std::borrow::Cow;
 use serde_json;
 use serde::Deserialize;
@@ -9,7 +9,7 @@ use serde::Deserialize;
 /// Response parser modes
 #[derive(Debug)]
 enum Modes {
-    Read, Write
+    Read, Write, Meta
 }
 
 /// Parses an intent response from LU into an intent that can be understood by the question paper
@@ -29,6 +29,8 @@ impl IntentParser {
     pub fn parse(&mut self, intent: LuResponse) -> Vec<Intent> {
         if intent.is_read(){
             self.mode = Some(Modes::Read);
+        }else if intent.is_meta(){
+            self.mode = Some(Modes::Meta);
         }else{
             self.mode = Some(Modes::Write);
         }
@@ -38,12 +40,26 @@ impl IntentParser {
     }
 
     fn process_intents(&mut self, entities: Vec<Entity>) -> Vec<Intent> {
-        if let Some(Modes::Write) = &self.mode {
-            self.create_write_intent(entities)
-        }else{
-            self.create_read_intent(entities)
+        match self.mode {
+            Some(Modes::Write) => self.create_write_intent(entities),
+            Some(Modes::Meta) =>self.create_meta_intent(entities),
+            _ => self.create_read_intent(entities)
         }
         
+    }
+
+    fn create_meta_intent(&mut self, mut entities: Vec<Entity>) -> Vec<Intent> {
+        let mut intents = Vec::new();
+
+        let top = entities.remove(0);
+
+        match top.entity_type() {
+            EntityType::Marked => intents.push(Intent::Meta(MetaIntent::Marked)),
+            EntityType::Skipped => intents.push(Intent::Meta(MetaIntent::Skipped)),
+            _ => ()
+        }
+
+        intents
     }
 
     fn create_read_intent(&mut self, entities: Vec<Entity>) -> Vec<Intent> {
@@ -64,7 +80,6 @@ impl IntentParser {
     fn create_write_intent(&mut self, mut entities: Vec<Entity>) -> Vec<Intent> {
         // create a write intent array
         let top = entities.remove(0);
-        println!("{:#?}", &entities);
 
         let mut ret = Vec::new();
 
@@ -78,13 +93,13 @@ impl IntentParser {
         }
 
         match top.entity_type() {
-            EntityType::Mark => {
+            EntityType::Marked => {
                 // create a locator marked from the remaining items
                 ret.push(
                     Intent::WriteIntent(Write::Mark(reads))
                 )
             },
-            EntityType::Skip => {
+            EntityType::Skipped => {
                 ret.push (
                     Intent::WriteIntent(Write::Skip(reads))
                 )

@@ -160,7 +160,9 @@ pub enum TopIntents {
     #[serde(alias="mark_for_review")]
     MarkForReview,
     #[serde(alias="skip")]
-    Skip
+    Skip,
+    #[serde(alias = "META")]
+    Meta
 }
 
 /// Entity types
@@ -175,9 +177,9 @@ pub enum EntityType {
     #[serde(alias = "typeofnav_question")]
     Question,
     #[serde(alias = "locator_marked")]
-    Mark,
+    Marked,
     #[serde(alias = "locator_skipped")]
-    Skip
+    Skipped
 }
 
 impl LuResponse {
@@ -185,7 +187,15 @@ impl LuResponse {
     pub fn is_read(&self)  -> bool {
         match self.top_intent {
             TopIntents::Navigation
-            | TopIntents::BooleanPositionCheck => true,
+            | TopIntents::BooleanPositionCheck 
+            => true,
+            _ => false
+        }
+    }
+
+    pub fn is_meta(&self) -> bool {
+        match self.top_intent {
+            TopIntents::Meta => true,
             _ => false
         }
     }

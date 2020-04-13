@@ -40,7 +40,14 @@ impl Reference {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Intent {
     ReadIntent(Read),
-    WriteIntent(Write)
+    WriteIntent(Write),
+    Meta(MetaIntent)
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum MetaIntent {
+    Skipped,
+    Marked
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize)]
@@ -54,7 +61,8 @@ pub type ReadResult = Result<Node, Cow<'static, str>>;
 #[derive(Debug, Clone, Serialize)]
 pub enum IntentResult {
     Read(Result<NodeData, Cow<'static, str>>),
-    Write(WriteResult)
+    Write(WriteResult),
+    Meta(String)
 }
 
 /// Types that can be used to resolve read intents
