@@ -49,6 +49,7 @@ struct LuResponse {
 struct Entity {
     entity: EntityType,
     #[serde(alias = "CHILD")]
+    #[serde(default)]
     children: Vec<EntityChild>
 }
 
@@ -150,7 +151,9 @@ pub enum EntityType {
     #[serde(alias = "question_number")]
     #[serde(alias = "section_number")]
     #[serde(alias = "typeofnav_question")]
-    Question
+    Question,
+    #[serde(alias = "locator_marked")]
+    Mark
 }
 
 impl LuResponse {
@@ -161,5 +164,9 @@ impl LuResponse {
             | TopIntents::BooleanPositionCheck => true,
             _ => false
         }
+    }
+
+    pub fn top_intent(&self) -> TopIntents {
+        self.top_intent
     }
 }

@@ -38,46 +38,70 @@ impl IntentParser {
     }
 
     fn process_intents(&mut self, entities: Vec<Entity>) -> Vec<Intent> {
+        if let Some(Modes::Write) = &self.mode {
+            self.create_write_intent(entities)
+        }else{
+            self.create_read_intent(entities)
+        }
+        
+    }
+
+    fn create_read_intent(&mut self, entities: Vec<Entity>) -> Vec<Intent> {
+        // create an array of intents
         let mut intents = Vec::new();
 
         let mut prev = 0;
         for entity in &entities {
-           match self.get_reference(entity, prev){
-               Ok(reference) => {
-                   if let Some(mode) = &self.mode {
-                        match mode {
-                            Modes::Read => intents.push(self.parse_read_intent(entity, reference)),
-                            Modes::Write => intents.push(self.parse_write_intent(entity, reference))
-                        }
-                   }
-                    
-               },
-               Err(err) => ()
-           }
+            let reference = self.get_reference(entity, prev).expect("could not compute the reference");
+
+            intents.push(self.parse_read_intent(entity, reference));
            prev += 1;
         }
 
         intents
     }
+
+    fn create_write_intent(&mut self, mut entities: Vec<Entity>) -> Vec<Intent> {
+        // create a write intent array
+        let top = entities.remove(0);
+
+        let mut ret = Vec::new();
+
+        let mut reads = Vec::new();
+        let mut prev = 0;
+
+        for entity in entities {
+            let reference = self.get_reference(&entity, prev).expect("could not get the reference");
+
+            reads.push(self.parse_read(&entity, reference));
+        }
+
+        match top.entity_type() {
+            EntityType::Mark => {
+                // create a locator marked from the remaining items
+                ret.push(
+                    Intent::WriteIntent(Write::Mark(reads))
+                )
+            },
+            _ => ()
+        }
+
+        ret
+    }
     // create a read intent
     fn parse_read_intent(&self, entity: &Entity, reference: Reference) -> Intent {
+
         let read_intent = self.parse_read(entity, reference);
 
         Intent::ReadIntent(read_intent)
-    }
-
-    // create a write inetnt
-    fn parse_write_intent(&self, entity: &Entity, reference: Reference) -> Intent {
-        let read_intent = self.parse_read(entity, reference);
-
-        Intent::WriteIntent(Write::Skip(read_intent))
     }
 
     // parse a read query
     fn parse_read(&self, entity: &Entity, reference: Reference) -> Read {
         let entity = match entity.entity_type() {
             EntityType::Question => Read::Question(reference),
-            EntityType::Section => Read::Section(reference)
+            EntityType::Section => Read::Section(reference),
+            _ => Read::Question(reference)
         };
 
         entity

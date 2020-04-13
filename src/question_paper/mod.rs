@@ -2,6 +2,7 @@ mod builder;
 mod interface;
 pub mod intents;
 
+use std::collections::HashMap;
 use std::borrow::Cow::{Borrowed, self};
 
 use interface::{Node, Predicate, NodeIndex, NodeData, predicates, Note};
@@ -18,8 +19,8 @@ pub struct QuestionPaper {
     prev_index: usize,
     last_index: usize,
     total_questions: u32,
-    marked: Vec<usize>,
-    skipped: Vec<usize>,
+    marked: HashMap<usize, NodeData>,
+    skipped: HashMap<usize, NodeData>,
     notes: Vec<Note>
 }
 
@@ -32,8 +33,8 @@ impl QuestionPaper {
             prev_index:0,
             last_index,
             total_questions,
-            marked: vec![],
-            skipped: vec![],
+            marked: HashMap::new(),
+            skipped: HashMap::new(),
             notes: vec![]
         }
     }
@@ -115,6 +116,21 @@ impl QuestionPaper {
         &self.notes
     }
 
+    // resolve the read intent in 
+    fn find_node(&mut self, reads: &Vec<Read>) -> ReadResult {
+        let mut node = None;
+
+        for intent in reads {
+            node = Some(self.resolve_read_intent(intent));
+        }
+
+        if node.is_none(){
+            return Err(Borrowed("Could not find the specified request"));
+        }
+
+        node.unwrap()
+    }
+
 }
 
 impl Reader for QuestionPaper {
@@ -145,7 +161,7 @@ impl Reader for QuestionPaper {
 
         let (prev, skip) = match reference {
             Start(skip) => (0, skip.abs() as usize),
-            Current(skip) => (self.prev_index(), skip.abs() as usize),
+            Current(skip) => (self.prev_index(), (skip.abs() as usize) + 1),
             End(skip) => (self.last_index(), skip.abs() as usize)
             
         };
@@ -189,60 +205,48 @@ impl Writer for QuestionPaper {
     /// Resolve a write intent
     fn resolve_write_intent(&mut self, write_intent: &Write) ->  WriteResult{
         match write_intent {
-            Write::Mark(ref read_intent) => return self.mark_for_review(read_intent),
-            Write::Skip(ref read_intent) => self.skip(read_intent),
-            Write::Note(ref read_intent, note) => self.note(read_intent, note.to_string())
+            Write::Mark(ref read_intents) => return self.mark_for_review(read_intents),
+            Write::Skip(ref read_intents) => self.skip(read_intents),
+            Write::Note(ref read_intents, note) => self.note(read_intents, note.to_string())
         }
     }
+
 
     // process a read intent and mark it for review
-    fn mark_for_review(&mut self, read_intent: &Read) -> WriteResult {
-        // resolve 
-        match self.resolve_read_intent(read_intent){
-            Ok(node) => {
-                // get the index and update the node at that point
-                let index = node.index;
+    fn mark_for_review(&mut self, reads: &Vec<Read>) -> WriteResult {
+        if let Ok(node) = self.find_node(reads) {
+            self.marked.insert(node.index, node.data.clone());
 
-                self.marked.push(index);
-
-                WriteResult::Success
-            }, 
-            Err(e) => WriteResult::Error(e)
+            return WriteResult::Success;
         }
+        
+        return WriteResult::Error(Borrowed("Could not mark the specified item for review. Please try again"));        
     }
 
-    fn skip(&mut self, read_intent: &Read) -> WriteResult {
-        /// Mark the node as skipped
-        match self.resolve_read_intent(read_intent){
-            Ok(node) => {
-                let index = node.index;
+    fn skip(&mut self, reads: &Vec<Read>) -> WriteResult {
+        if let Ok(node) = self.find_node(reads) {
+            self.skipped.insert(node.index, node.data.clone());
 
-                self.skipped.push(index);
-
-                // advance the cursor with the index
-                self.update_previous(index);
-
-                WriteResult::Success
-            },
-            Err(err) => WriteResult::Error(err)
+            return WriteResult::Success;
         }
+        
+        return WriteResult::Error(Borrowed("Could not skip the specified item. Please try again"));        
     }
 
     /// Take a note on this node
-    fn note(&mut self, read_intent: &Read, note: String) -> WriteResult {
-        match self.resolve_read_intent(read_intent){
-            Ok(node) => {
-                let index = node.index;
-
-                self.notes.push(Note{
-                    note,
-                    index
-                });
-
-                WriteResult::Success
-            },
-            Err(err) => WriteResult::Error(err)
+    fn note(&mut self, reads: &Vec<Read>, note: String) -> WriteResult {
+        if let Ok(node) = self.find_node(reads){
+            self.notes.push(Note {
+                note,
+                index: node.index
+            });
+           
+            return WriteResult::Success;
         }
+
+        return WriteResult::Error(Borrowed("Could not take a note as requested"));
+
+        
     }
 }
 

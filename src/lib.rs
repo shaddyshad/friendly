@@ -30,6 +30,7 @@ impl State {
     }
 
     pub fn handle_intents(&mut self, intents: Vec<Intent>) -> Result<IntentResult, Errors> {
+        println!("{:#?}", &intents);
         if self.0.is_none(){
             return Err(Errors::InternalError("No question paper has been initialized. Maybe you forgot to upload.".to_string()));
         }
@@ -43,7 +44,7 @@ impl State {
             if let Some(res) = r.pop(){
                 return Ok(res);
             }else{
-                return Err(Errors::InternalError("Could not resolve your request, try again".to_string()));
+                return Err(Errors::InternalError("Could not pop anything, try again".to_string()));
             }
                 
         }

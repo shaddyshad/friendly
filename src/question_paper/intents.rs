@@ -11,10 +11,11 @@ pub enum Read {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Write {
-    Mark(Read),
-    Skip(Read),
-    Note(Read, String)
+    Mark(Vec<Read>),
+    Skip(Vec<Read>),
+    Note(Vec<Read>, String)
 }
+
 
 /// Reference with their skip values
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -85,12 +86,12 @@ pub trait Writer {
     fn resolve_write_intent(&mut self, write_intent: &Write) ->  WriteResult;
 
     // process a read intent and mark it for review
-    fn mark_for_review(&mut self, read_intent: &Read) -> WriteResult;
+    fn mark_for_review(&mut self, read_intent: &Vec<Read>) -> WriteResult;
 
     /// Skip the component found on the read intent position
-    fn skip(&mut self, read_intent: &Read) -> WriteResult;
+    fn skip(&mut self, read_intent: &Vec<Read>) -> WriteResult;
 
     /// take a note on the component found
-    fn note(&mut self, read_intent: &Read, note: String) -> WriteResult;
+    fn note(&mut self, read_intent: &Vec<Read>, note: String) -> WriteResult;
 
 }
