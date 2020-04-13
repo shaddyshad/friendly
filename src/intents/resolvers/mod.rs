@@ -67,6 +67,10 @@ impl Entity {
             return Err("Entity has more than one child");
         }
 
+        if self.children.is_empty() {
+            return Ok(EntityChild::new());
+        }
+
         // get the top most 
        Ok( self.children[0].clone())
     }
@@ -75,6 +79,22 @@ impl Entity {
 #[derive(Deserialize, Debug, Clone)]
 struct EntityChild {
     value: Value
+}
+
+impl EntityChild {
+    pub fn new() -> Self {
+        let data = r#"
+            {
+                "offset":0,
+                "relativeTo": "current"
+            }
+        "#;
+        let value: Value = serde_json::from_str(data).expect("invalid json data");
+
+        EntityChild {
+            value
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -138,7 +158,9 @@ pub enum TopIntents {
     #[serde(alias = "boolean_position_check")]
     BooleanPositionCheck,
     #[serde(alias="mark_for_review")]
-    MarkForReview
+    MarkForReview,
+    #[serde(alias="skip")]
+    Skip
 }
 
 /// Entity types
@@ -153,7 +175,9 @@ pub enum EntityType {
     #[serde(alias = "typeofnav_question")]
     Question,
     #[serde(alias = "locator_marked")]
-    Mark
+    Mark,
+    #[serde(alias = "locator_skipped")]
+    Skip
 }
 
 impl LuResponse {

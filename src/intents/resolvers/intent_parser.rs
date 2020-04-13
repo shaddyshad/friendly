@@ -64,6 +64,7 @@ impl IntentParser {
     fn create_write_intent(&mut self, mut entities: Vec<Entity>) -> Vec<Intent> {
         // create a write intent array
         let top = entities.remove(0);
+        println!("{:#?}", &entities);
 
         let mut ret = Vec::new();
 
@@ -83,6 +84,11 @@ impl IntentParser {
                     Intent::WriteIntent(Write::Mark(reads))
                 )
             },
+            EntityType::Skip => {
+                ret.push (
+                    Intent::WriteIntent(Write::Skip(reads))
+                )
+            }
             _ => ()
         }
 
