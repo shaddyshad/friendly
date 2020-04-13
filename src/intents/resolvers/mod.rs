@@ -9,13 +9,7 @@ pub use http::{HttpResolver};
 pub type Value = serde_json::Value;
 use serde::Deserialize;
 
-/// Intent parsing errors
-#[derive(Debug)]
-pub enum Errors {
-    NetworkError(String),
-    ParsingError,
-    InvalidInput(String)
-}
+pub use crate::errors::Errors;
 
 type IntentResult = Result<Vec<Intent>, Errors>;
 

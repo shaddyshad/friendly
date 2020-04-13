@@ -1,8 +1,9 @@
 use crate::Tag;
 use super::QuestionPaper;
 use std::borrow::Cow::{self, Borrowed};
+use serde::Serialize;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum NodeData {
     Document,
     Section(SectionData),
@@ -28,7 +29,7 @@ impl NodeData {
 }
 
 // Section data
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SectionData {
     pub num_of_questions: u32,
     pub num_of_attempted: u32,
@@ -39,7 +40,7 @@ pub struct SectionData {
 }
 
 /// Question 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct QuestionData{
     pub question: String,
     pub question_number: u32,
@@ -60,7 +61,7 @@ impl Default for QuestionData {
 
 
 /// A note can be taken on any node
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Note{
     pub index: usize,
     pub note: String

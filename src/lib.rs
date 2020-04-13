@@ -2,36 +2,72 @@
 pub mod parser;
 pub mod question_paper;
 pub mod intents;
+mod errors;
 
 
 pub use parser::interface::{Tag, Token::TagToken};
 use parser::{XmlContent, Sink, Tokenizer};
-pub use question_paper::{QPaperBuilder, Builder, QuestionPaper};
+pub use question_paper::{QPaperBuilder, Builder, QuestionPaper, Intent, IntentResult};
 pub use intents::resolve;
 
 use std::sync::{Arc, RwLock};
 use actix_multipart::Multipart;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
-use actix_web::{web, HttpRequest, HttpServer, get, post, HttpResponse, App, Responder, Error};
+use actix_web::{web, HttpRequest, HttpServer, get, post, HttpResponse, App, Responder};
 use futures::{StreamExt, TryStreamExt};
 use serde::Deserialize;
+
+use errors::Errors;
 // for keeping safe multihteadable state
-pub struct State {
-    question_paper: Option<QuestionPaper>
-}
+pub struct State ( Option<QuestionPaper> );
 
 pub type StateData = Arc<RwLock<State>>;
 
 impl State {
     pub fn new() -> Self {
-        State {
-            question_paper: None
+        State (None)
+    }
+
+    pub fn handle_intents(&mut self, intents: Vec<Intent>) -> Result<IntentResult, Errors> {
+        if self.0.is_none(){
+            return Err(Errors::InternalError("No question paper has been initialized. Maybe you forgot to upload.".to_string()));
         }
+
+        if let Some(ref mut question_paper) = self.0 {
+            let mut r : 
+                Vec<IntentResult> = intents.into_iter()
+                                            .map(|intent| question_paper.resolve_intent(intent))
+                                            .collect();
+
+            if let Some(res) = r.pop(){
+                return Ok(res);
+            }else{
+                return Err(Errors::InternalError("Could not resolve your request, try again".to_string()));
+            }
+                
+        }
+        
+        Err(Errors::InternalError("Could not resolve your request, try again".to_string()))
     }
 }
+// async function to resolve a user input
+pub async fn resolve_intent(state: web::Data<StateData>, input: &str) -> Result<IntentResult, Errors> {
+    match resolve(input).await {
+        Ok(intents) => {
+            let mut state = state.write().unwrap();
+
+            match state.handle_intents(intents) {
+                Ok(res) => Ok(res),
+                Err(e) => Err(e)
+            }
+        }
+        Err(e) => Err(e)
+    }
+    
+}
 // async function to handle network upload
-pub async fn upload(state: web::Data<StateData>, mut payload: Multipart) -> Result<String, Error> {
+pub async fn upload(state: web::Data<StateData>, mut payload: Multipart) -> Result<String, Errors> {
     let mut content = String::new();
 
     // iterate over the multipart data 
@@ -51,7 +87,7 @@ pub async fn upload(state: web::Data<StateData>, mut payload: Multipart) -> Resu
 
     let mut state = state.write().unwrap();
 
-    state.question_paper = Some(question_paper);
+    state.0 = Some(question_paper);
 
     Ok(format!("uploaded {} bytes", content.len()))
 }

@@ -1,5 +1,6 @@
 use super::{Node, Predicate, NodeData, Find};
 use std::borrow::Cow;
+use serde::Serialize;
 
 // intents interface
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -41,7 +42,7 @@ pub enum Intent {
     WriteIntent(Write)
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 pub enum WriteResult {
     Success,
     Error(Cow<'static, str>)
@@ -49,7 +50,7 @@ pub enum WriteResult {
 
 pub type ReadResult = Result<Node, Cow<'static, str>>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum IntentResult {
     Read(Result<NodeData, Cow<'static, str>>),
     Write(WriteResult)
