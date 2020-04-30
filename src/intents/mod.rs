@@ -1,6 +1,5 @@
 use crate::question_paper::intents;
 mod resolvers;
-use std::borrow::Cow;
 
 use resolvers::{IntentResolver, Errors};
 use intents::{Intent, Reference};

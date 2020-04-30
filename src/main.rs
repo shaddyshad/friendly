@@ -1,5 +1,4 @@
 use interactive_paper::{resolve_intent, State, StateData, upload};
-use std::time::SystemTime;
 use std::sync::{RwLock, Arc};
 use env_logger::Env;
 use actix_web::{web, HttpRequest, HttpServer, get, post, HttpResponse, App, Responder, Error};

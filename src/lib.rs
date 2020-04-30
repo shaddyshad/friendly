@@ -17,6 +17,7 @@ use std::thread;
 use actix_web::{web, HttpRequest, HttpServer, get, post, HttpResponse, App, Responder};
 use futures::{StreamExt, TryStreamExt};
 use serde::Deserialize;
+use std::time::SystemTime;
 
 use errors::Errors;
 // for keeping safe multihteadable state
@@ -30,7 +31,6 @@ impl State {
     }
 
     pub fn handle_intents(&mut self, intents: Vec<Intent>) -> Result<IntentResult, Errors> {
-        println!("{:#?}", &intents);
         if self.0.is_none(){
             return Err(Errors::InternalError("No question paper has been initialized. Maybe you forgot to upload.".to_string()));
         }
@@ -54,8 +54,15 @@ impl State {
 }
 // async function to resolve a user input
 pub async fn resolve_intent(state: web::Data<StateData>, input: &str) -> Result<IntentResult, Errors> {
+    let now = SystemTime::now();
+
     match resolve(input).await {
         Ok(intents) => {
+            if let Ok(d) = now.elapsed(){
+                let dt = d.as_micros();
+
+                println!("Took {} ms to resolve an intent from LU.", dt);
+            }
             let mut state = state.write().unwrap();
 
             match state.handle_intents(intents) {

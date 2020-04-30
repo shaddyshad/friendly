@@ -1,13 +1,11 @@
-use super::{Intent, Errors, IntentParser, LuResponse};
-use std::borrow::Cow::{self, Borrowed};
-use hyper::{body::HttpBody as _, Client, Uri};
+use super::{Errors, LuResponse};
+use hyper::{Client, Uri};
 use url::form_urlencoded::{byte_serialize};
 use serde_json::{from_slice};
 
 /// Resolves an input string using a http connection to an LU client
 pub struct HttpResolver {
     base_url: String,
-    parser: IntentParser
 }
 
 
@@ -18,7 +16,6 @@ impl HttpResolver {
 
         HttpResolver {
             base_url,
-            parser: IntentParser::new()
         }
     }
 
